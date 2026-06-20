@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## V0.1.0
 
 ### Added
-- `n8nWorkflow.json` — full n8n workflow implementing the AGENTS.md pipeline:
+- `Yucatan Slang Jailbreak Benchmark.json` — full n8n workflow implementing the AGENTS.md pipeline:
   Attack Config → Fetch Jerga (Postgres) → Attacker Agent (Llama 405B @ 0.9) →
   Target LLM (NVIDIA NIM HTTP @ 0.7) → Regex pre-filter → Judge Agent
   (Llama 70B @ 0.0, structured JSON output) → Store Result (Postgres INSERT).
