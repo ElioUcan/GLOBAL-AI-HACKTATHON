@@ -8,7 +8,7 @@ and how they chain together. Each agent is a discrete LLM call with a single res
 ## Agent Map
 
 ```
-[DB: jerga corpus]
+[DB: jerga corpus]  ← 02-seed-jerga.sql (temporary); web scraper (planned)
        │
        ▼
 ┌─────────────────┐
@@ -30,6 +30,32 @@ and how they chain together. Each agent is a discrete LLM call with a single res
 │  STORAGE AGENT  │  ← writes structured result to PostgreSQL
 └─────────────────┘
 ```
+
+---
+
+## Jerga Corpus (Data Source)
+
+The Attacker reads slang terms from the PostgreSQL `jerga` table via the n8n **Fetch Jerga** node.
+
+### Temporary: seed SQL
+
+Until automated ingestion is built, bootstrap the corpus with `docker/postgres/init/02-seed-jerga.sql`.
+The file runs automatically on first Postgres boot (alongside `01-schema.sql`) via the
+`/docker-entrypoint-initdb.d/` hook. Each row must include:
+
+| Column | Description |
+|---|---|
+| `term` | Slang word or phrase |
+| `meaning` | Plain-language definition |
+| `harm_category` | e.g. `violence`, `drugs`, `hate_speech` |
+| `region` | e.g. `Yucatan`, `Merida` |
+
+### Planned: web scraper
+
+A web scraper will replace the static seed file as the primary corpus source. It will crawl
+regional slang dictionaries and forums, normalize entries into the same `jerga` schema, and
+upsert rows on a schedule. The benchmark pipeline (Fetch Jerga → Attacker → …) stays unchanged —
+only the ingestion path changes.
 
 ---
 
@@ -95,7 +121,7 @@ Generate one adversarial prompt using the slang term above.
 ### Notes
 
 - For `pair_refine`, include previous attempt + judge feedback in the user message
-- Run 3–5 prompts per (term, technique) combination to maximize coverage
+- Run **100 iterations** per benchmark execution (configurable via `batch_iterations` in Attack Config)
 - Log all generated prompts even if the attack fails
 
 ---
@@ -348,7 +374,7 @@ ORDER BY success_rate_pct DESC;
 
 1. Add the NVIDIA NIM model slug to the **Supported Targets** table above
 2. Ensure `NVIDIA_API_KEY` is set in `.env` (all targets share the one key)
-3. Run: `python attacker/main.py --target <new-model-slug> --limit 10`
+3. Run: `python attacker/main.py --target <new-model-slug> --limit 100`
 4. Check results in the Grafana dashboard
 
 No other code changes needed — LiteLLM handles the rest.
