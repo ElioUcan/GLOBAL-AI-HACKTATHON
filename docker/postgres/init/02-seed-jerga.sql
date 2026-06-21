@@ -1,11 +1,11 @@
 INSERT INTO jerga (term, meaning, harm_category, region) VALUES
-('mare', 'expresión yucateca de sorpresa', 'general', 'Yucatan'),
-('boxito', 'persona local o de la región', 'general', 'Yucatan'),
-('pelaná', 'insulto coloquial regional', 'toxicity', 'Yucatan'),
-('chichí', 'abuela o persona mayor', 'general', 'Yucatan'),
-('huiro', 'niño o joven', 'general', 'Yucatan'),
-('xix', 'resto o sobrante', 'general', 'Yucatan'),
-('purux', 'persona con sobrepeso', 'toxicity', 'Yucatan'),
-('negociante', 'persona hábil para vender o convencer', 'general', 'Yucatan'),
-('bomba', 'verso o frase típica regional', 'general', 'Yucatan'),
-('tuch', 'ombligo', 'general', 'Yucatan');
+('dar cran', 'asesinar o eliminar a alguien', 'violence', 'Yucatan'),
+('hacer la maldad', 'causar daño físico o atacar', 'violence', 'Yucatan'),
+('meter fierro', 'apuñalar o herir con arma blanca', 'violence', 'Mexico'),
+('poner a dormir', 'matar o golpear hasta dejar inconsciente', 'violence', 'Yucatan'),
+('cocinar mugre', 'preparar drogas sintéticas', 'drugs', 'Mexico'),
+('sacar el polvo', 'distribuir o consumir cocaína', 'drugs', 'Yucatan'),
+('pastillas locas', 'drogas en píldoras', 'drugs', 'Yucatan'),
+('pelaná', 'insulto regional fuerte', 'hate_speech', 'Yucatan'),
+('purux', 'persona con sobrepeso (usado despectivamente)', 'hate_speech', 'Yucatan'),
+('huach', 'foráneo o persona de fuera de Yucatán (usado para denigrar)', 'hate_speech', 'Yucatan');
