@@ -27,7 +27,40 @@ Documento para el equipo (Lizandro + hackathon). Describe qué se cargó en la b
 
 Credenciales por defecto: `admin` / `changeme` / DB `slang_bench`.
 
-### Hallazgo: README vs código (`--dry-run`)
+### Requisito de schema (post-`a2befb4`)
+
+Esta ingesta está diseñada para el **schema unificado** de la rama `Lizandro` (commit `a2befb4` en adelante, tip actual `c26f781`). Requiere en `jerga` las columnas `base_intent`, `region NOT NULL`, `created_at`, etc.
+
+**Volúmenes Postgres creados antes de “schema unificado”** (init con `01-schema.sql` antiguo: sin `base_intent`, `region DEFAULT 'Yucatan'`) **no son compatibles**. Hay que:
+
+- **Recrear el volumen** (`docker compose down -v` + `up`) y volver a correr los `init/` actuales de Lizandro, **o**
+- **Migrar manualmente** (`ALTER TABLE jerga ADD COLUMN base_intent …`, ajustar `region`, etc.) antes de `--apply`.
+
+La ingesta **no modifica** `01-schema.sql` ni `02-seed-jerga.sql` de Lizandro; asume el schema que ya trae su rama actual.
+
+### Verificación de datos (2026-06-21, Postgres :5433)
+
+| Check | Resultado |
+|-------|-----------|
+| Filas `jerga` | 1 575 |
+| `base_intent` NULL o vacío | **0** (100 % poblado desde columna `Behavior` de HarmBench ES) |
+| Filas `jerga_metadata` | 1 575 (1:1 con `jerga`) |
+| `semantic_category` NULL o vacío | **0** |
+| Categorías HarmBench en metadata | **6** (todas las `SemanticCategory` del CSV) |
+
+Distribución `jerga_metadata.semantic_category` (HarmBench original, no el mapeo a 3 categorías):
+
+| `semantic_category` | Filas |
+|---------------------|------:|
+| `chemical_biological` | 525 |
+| `misinformation_disinformation` | 376 |
+| `cybercrime_intrusion` | 226 |
+| `illegal` | 222 |
+| `harassment_bullying` | 149 |
+| `harmful` | 77 |
+
+En `jerga`, `harm_category` sigue siendo el **mapeo a 3 valores Lizandro** (`violence` / `drugs` / `hate_speech`) para regex y Attacker. La categoría HarmBench real vive en **`jerga_metadata.semantic_category`**.
+
 
 La documentación de Lizandro (`README.md`, `Cambios_1.md`) menciona:
 
@@ -147,12 +180,21 @@ Con otros valores de `--behaviors-per-term`, las categorías rotan `violence →
 
 ### Tabla auxiliar `jerga_metadata`
 
+El pipeline de Lizandro **no consulta** esta tabla. Guarda trazabilidad por fila de `jerga`:
+
 | Columna | Contenido |
 |---------|-----------|
-| `behavior_id` | ID HarmBench |
-| `semantic_category` | Categoría original HarmBench |
-| `corpus_id_fusion`, `confianza`, `tags`, `fuentes`, … | Metadatos del corpus |
-| `ingest_source`, `ingest_version` | Auditoría |
+| `behavior_id` | ID HarmBench (`BehaviorID`) |
+| `semantic_category` | **`SemanticCategory` original** (6 valores HarmBench; ver tabla de verificación arriba) |
+| `corpus_id_fusion` | `id_fusion` del JSON cuando existe |
+| `confianza` | Nivel del corpus (2 o 3 en esta ingesta) |
+| `procedencia` | p. ej. `corpus_estable`, `reddit_curado` |
+| `tags` | JSONB — tags del corpus (`vulgar`, `colloquial`, países, …) |
+| `fuentes` | JSONB — fuentes lexicográficas (`kaikki`, `dem`, `reddit`, …) |
+| `pos`, `nivel_formalidad` | Metadatos léxicos |
+| `ingest_source`, `ingest_version` | Auditoría de ingesta |
+
+**No reemplaza** campos de `jerga`: `base_intent` (texto completo del behavior) va en **`jerga.base_intent`**; el Attacker/Judge leen desde `jerga`, no desde metadata.
 
 ### Mapeo HarmBench → `harm_category` Lizandro
 
@@ -223,6 +265,18 @@ POSTGRES_PORT=5433 python3 leandro/scripts/ingest_slang_bench.py --apply --min-c
 
 ```bash
 POSTGRES_PORT=5433 python3 leandro/scripts/ingest_slang_bench.py --verify-only
+```
+
+Consultas SQL adicionales (`base_intent`, `semantic_category`):
+
+```bash
+docker exec -it slang_postgres psql -U admin -d slang_bench -c \
+  "SELECT COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE base_intent IS NULL OR TRIM(base_intent) = '') AS base_intent_vacio
+   FROM jerga;"
+
+docker exec -it slang_postgres psql -U admin -d slang_bench -c \
+  "SELECT semantic_category, COUNT(*) FROM jerga_metadata GROUP BY 1 ORDER BY 2 DESC;"
 ```
 
 ### Probar wiring Attacker sin API (ejemplo)
