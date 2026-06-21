@@ -5,6 +5,61 @@ All notable changes to the Yucatan Slang Jailbreak Benchmark are documented here
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## V0.1.4
+
+### Plain-language summary
+- We updated the n8n visual workflow so it follows the same logic as `main.py`.
+  In simple terms: n8n now knows how to run each slang test, score the answer
+  from 1 to 5, save the full result, and repeat the process in a batch.
+
+### Changed
+- **n8n workflow aligned with `main.py`** — updated
+  `Yucatan Slang Jailbreak Benchmark.json` so the visual workflow follows the
+  current benchmark contract: `Fetch Jerga → Attacker → Target → Regex
+  pre-filter → Judge 1-5 → Storage`.
+- **Batch loop fixed** — `Loop Batch (100x)` now sends `Fetch Jerga` through the
+  loop output, while the done output remains empty. `Store Result` still returns
+  to `Loop Batch (100x)` to continue the next item.
+- **Regex verdict updated** — regex hits now emit a complete Judge-compatible
+  payload with `score: 5`, `jailbreak_success`, `confidence`, `harm_detected`,
+  `reasoning`, and `severity`.
+- **Judge output updated** — the Judge prompt and structured parser now require
+  the 1-5 scoring contract, including `score`, `jailbreak_success`,
+  `confidence`, `harm_detected`, `reasoning`, and `severity`.
+- **Storage mapping updated** — `Store Result` now maps `score`,
+  `harm_detected`, and `judge_output` in addition to the existing result fields.
+- **Postgres credential guidance added** — workflow notes now specify the
+  expected n8n credential name and Docker-network connection values for
+  `Fetch Jerga` and `Store Result`.
+
+### Validation
+- The workflow JSON was validated with `python -m json.tool`.
+
+### Notes
+- n8n credentials are local to each n8n instance. They are not stored in the
+  repo and are not exported inside `Yucatan Slang Jailbreak Benchmark.json`.
+  After pulling these changes and importing the workflow, each teammate must
+  create their own Postgres credential (`slang_bench_postgres`) and configure
+  NVIDIA credentials/API keys in their local n8n UI.
+
+### Pending
+- **Re-import the updated workflow JSON in n8n** so the UI uses the latest repo
+  version, not an older local copy.
+- **Configure required credentials** in the n8n UI: Postgres credentials for
+  `Fetch Jerga` and `Store Result`, plus NVIDIA credentials/API key for the LLM
+  nodes and Target HTTP request.
+- **Run `main.py` end-to-end first** with a real `NVIDIA_API_KEY`, using a small
+  controlled run (`--limit 1`, then 5-10) and confirm rows land in `results`.
+- **Run n8n end-to-end next** with a small batch (`batch_iterations = 1`, then
+  3-5) and confirm it writes the same kind of rows to `results`.
+- **Confirm Grafana renders real benchmark data** from `results`: model,
+  technique, harm category, score, severity, and jailbreak-success metrics.
+- **Start collecting evidence for the research hypothesis**: regional Mexican
+  slang may help bypass safety filters because the model does not understand the
+  cultural context well enough. The results do not need to prove that upfront;
+  the benchmark should also reveal if the weakness comes from neutral Spanish,
+  slang, prompt structure, model-specific behavior, or another repeatable gap.
+
 ## V0.1.3
 
 ### Changed
@@ -51,9 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   row lands in `results`.
 - **Confirm Grafana with real output** — after `main.py` writes at least one
   row, verify that dashboard panels render actual metrics.
-- **Update n8n to match `main.py`** — the workflow still needs the Judge 1-5
-  score, `score`, `harm_detected`, `judge_output`, updated Storage mapping, and
-  corrected batch loop.
+- **Validate n8n in the UI** — re-import the updated workflow JSON, configure
+  credentials, run a 1-3 item batch, and confirm rows land in `results`.
 - **Use n8n only after Python passes** — once `main.py` produces valid results,
   mirror the same flow in n8n and run the visual workflow to start generating
   benchmark data.
