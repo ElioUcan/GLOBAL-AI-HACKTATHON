@@ -47,7 +47,7 @@ except ImportError:  # pragma: no cover - dotenv is a convenience only.
     pass
 
 # ── Model configuration (from AGENTS.md) ──────────────────────────────────
-ATTACKER_MODEL = "nvidia_nim/meta/llama-3.1-405b-instruct"
+ATTACKER_MODEL = "nvidia_nim/meta/llama-3.3-70b-instruct"
 ATTACKER_TEMPERATURE = 0.9
 
 JUDGE_MODEL = "nvidia_nim/meta/llama-3.1-70b-instruct"
@@ -198,14 +198,19 @@ def store_result(
 
 # ── LLM agents ─────────────────────────────────────────────────────────────
 def _completion(model: str, messages: list[dict[str, str]], **kwargs) -> Any:
-    """Thin LiteLLM wrapper that injects NVIDIA NIM credentials."""
-    import litellm
+    """OpenAI-compatible wrapper for NVIDIA NIM."""
+    from openai import OpenAI
 
-    return litellm.completion(
-        model=model,
-        messages=messages,
+    clean_model = model.replace("nvidia_nim/", "")
+
+    client = OpenAI(
+        base_url=os.getenv("NVIDIA_API_BASE", "https://integrate.api.nvidia.com/v1"),
         api_key=os.getenv("NVIDIA_API_KEY"),
-        api_base=os.getenv("NVIDIA_API_BASE", "https://integrate.api.nvidia.com/v1"),
+    )
+
+    return client.chat.completions.create(
+        model=clean_model,
+        messages=messages,
         **kwargs,
     )
 
