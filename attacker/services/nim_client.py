@@ -66,9 +66,9 @@ def _sleep_for(exc: BaseException, attempt: int) -> float:
 def _provider_credentials(model: str) -> dict[str, Any]:
     """Resolve api_key / api_base for a model slug (dual-API routing).
 
-    - ``nvidia_nim/*``  → NVIDIA NIM key + base (attacker, judge, SIS, NIM targets)
     - ``openrouter/*``  → OpenRouter key (+ optional base override); LiteLLM
       defaults the base to ``https://openrouter.ai/api/v1``.
+    - ``nvidia_nim/*``  → NVIDIA NIM key + base (optional NIM targets)
     - anything else     → no overrides; let LiteLLM resolve from its own env vars.
 
     Forcing NVIDIA's base URL onto an OpenRouter slug (the previous behavior) made
@@ -103,6 +103,10 @@ def completion(model: str, messages: list[dict[str, str]], **kwargs) -> Any:
     when the server sends one.
     """
     import litellm
+
+    # Silence litellm's noisy stdout banners (e.g. "Provider List: ...") emitted
+    # when a model is missing from its pricing map — cosmetic, not an error.
+    litellm.suppress_debug_info = True
 
     retryable = _retryable_exceptions()
     creds = _provider_credentials(model)

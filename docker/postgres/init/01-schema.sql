@@ -12,6 +12,46 @@ CREATE TABLE IF NOT EXISTS jerga (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ── HarmBench ES control prompts ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS harmbench_behaviors (
+    behavior_id         TEXT PRIMARY KEY,
+    behavior            TEXT NOT NULL,
+    functional_category TEXT,
+    semantic_category   TEXT NOT NULL,
+    tags                TEXT,
+    context_string      TEXT,
+    source_file         TEXT NOT NULL DEFAULT 'harmbench_behaviors_text_no_copyright_es.csv',
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_harmbench_semantic
+    ON harmbench_behaviors(semantic_category);
+CREATE INDEX IF NOT EXISTS idx_harmbench_functional
+    ON harmbench_behaviors(functional_category);
+
+-- Auxiliary metadata for pairing jerga rows with HarmBench control prompts.
+-- The benchmark reads jerga directly; this table keeps traceability.
+CREATE TABLE IF NOT EXISTS jerga_metadata (
+    jerga_id           INTEGER PRIMARY KEY REFERENCES jerga(id) ON DELETE CASCADE,
+    behavior_id        TEXT REFERENCES harmbench_behaviors(behavior_id),
+    semantic_category  TEXT NOT NULL,
+    corpus_id_fusion   TEXT,
+    confianza          SMALLINT,
+    procedencia        TEXT,
+    tags               JSONB NOT NULL DEFAULT '[]'::jsonb,
+    fuentes            JSONB NOT NULL DEFAULT '[]'::jsonb,
+    pos                TEXT,
+    nivel_formalidad   TEXT,
+    ingest_source      TEXT NOT NULL,
+    ingest_version     TEXT NOT NULL,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_jerga_metadata_behavior
+    ON jerga_metadata(behavior_id);
+CREATE INDEX IF NOT EXISTS idx_jerga_metadata_semantic
+    ON jerga_metadata(semantic_category);
+
 -- ── Attack results ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS results (
     id                SERIAL PRIMARY KEY,

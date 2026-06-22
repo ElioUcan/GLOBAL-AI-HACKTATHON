@@ -32,19 +32,18 @@ class NimModelSpec:
 
 
 def _litellm(slug: str) -> str:
-    return f"nvidia_nim/{slug}"
+    return f"openrouter/{slug}"
 
 
-# Matriz de selección basada en evidencia (doc V2).
-# Slugs verificados contra el catálogo NVIDIA NIM (integrate.api.nvidia.com).
-# `meta/llama-3.1-405b-instruct` y `nvidia/nemotron-4-340b-instruct` fueron
-# retirados del endpoint (404) y reemplazados por modelos servidos actualmente.
+# Attacker models — served via OpenRouter (OPENROUTER_API_KEY).
+# Two-model lineup: a high-capacity validation attacker and a base attacker.
+# No dedicated fallback model; the fallback reuses the base attacker.
 ATTACKER_MODEL_REGISTRY: dict[str, NimModelSpec] = {
     "validation": NimModelSpec(
-        slug="meta/llama-3.3-70b-instruct",
-        litellm_id=_litellm("meta/llama-3.3-70b-instruct"),
+        slug="nousresearch/hermes-3-llama-3.1-405b",
+        litellm_id=_litellm("nousresearch/hermes-3-llama-3.1-405b"),
         role=AttackerRole.VALIDATION,
-        rejection_rate="monitor_high",
+        rejection_rate="very_low",
         sis_expectation="high",
         cost_tier="high",
         ideal_pipeline_role=(
@@ -52,28 +51,20 @@ ATTACKER_MODEL_REGISTRY: dict[str, NimModelSpec] = {
         ),
     ),
     "base": NimModelSpec(
-        slug="meta/llama-3.1-70b-instruct",
-        litellm_id=_litellm("meta/llama-3.1-70b-instruct"),
+        slug="meta-llama/llama-3.1-70b-instruct",
+        litellm_id=_litellm("meta-llama/llama-3.1-70b-instruct"),
         role=AttackerRole.BASE,
         rejection_rate="low_medium",
         sis_expectation="medium_high",
         cost_tier="moderate",
-        ideal_pipeline_role="Atacante base (default) si calibración confirma balance costo/SIS",
-    ),
-    "fallback": NimModelSpec(
-        slug="nvidia/nemotron-3-super-120b-a12b",
-        litellm_id=_litellm("nvidia/nemotron-3-super-120b-a12b"),
-        role=AttackerRole.FALLBACK,
-        rejection_rate="very_low",
-        sis_expectation="monitor_formal",
-        cost_tier="high",
-        ideal_pipeline_role="Fallback de estructura si Llama bloquea sistemáticamente",
+        ideal_pipeline_role="Atacante base (default) para la mayoría de técnicas",
     ),
 }
 
 DEFAULT_BASE_MODEL = ATTACKER_MODEL_REGISTRY["base"]
-DEFAULT_FALLBACK_MODEL = ATTACKER_MODEL_REGISTRY["fallback"]
 DEFAULT_VALIDATION_MODEL = ATTACKER_MODEL_REGISTRY["validation"]
+# No dedicated fallback model in this lineup; reuse the base attacker.
+DEFAULT_FALLBACK_MODEL = ATTACKER_MODEL_REGISTRY["base"]
 
 CALIBRATION_CANDIDATES: list[NimModelSpec] = list(ATTACKER_MODEL_REGISTRY.values())
 
