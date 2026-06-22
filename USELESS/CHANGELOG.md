@@ -5,6 +5,86 @@ All notable changes to the Yucatan Slang Jailbreak Benchmark are documented here
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## V0.1.5
+
+### Plain-language summary
+- We loaded the real benchmark corpus into the database. Each Mexican/regional
+  slang term is now paired with HarmBench control behaviors, so the database
+  holds 1,050 ready-to-run test rows instead of the 10 placeholder seeds.
+- We narrowed the study to **two harm categories only**: Chemical & Biological
+  Weapons/Drugs (`chemical_biological`) and Harassment & Bullying
+  (`harassment_bullying`).
+- We added a single command to (re)build that data — `python -m attacker.main
+  ingest` — and we aligned the n8n regex node with the current rule that **only
+  the LLM Judge can declare a jailbreak**.
+
+### Added
+- **Ingestion module + CLI subcommand** — new `attacker/storage/ingest.py`,
+  exposed as `python -m attacker.main ingest` (with `--dry-run`, `--corpus`,
+  `--harmbench`, `--min-confianza`). It loads the Spanish HarmBench CSV into
+  `harmbench_behaviors`, then pairs each curated slang term with one behavior
+  per target category and rebuilds `jerga` + `jerga_metadata`.
+- **Missing tables auto-created** — `ingest` runs `CREATE TABLE IF NOT EXISTS`
+  for `harmbench_behaviors` and `jerga_metadata`, so databases created before
+  the V2 schema get the new tables without a volume reset.
+
+### Changed
+- **Two-category scope with HarmBench naming** — `jerga.harm_category` now uses
+  the HarmBench `semantic_category` values verbatim (`chemical_biological`,
+  `harassment_bullying`). Because `harm_category == semantic_category`, the
+  jerga↔HarmBench join is a clean identity match.
+- **`HARM_KEYWORDS` updated** (`attacker/main.py`) — added keyword lists for the
+  two in-scope categories; legacy keys kept (harmless) for backward queries.
+- **n8n Regex Pre-filter rewritten** to mirror `prefilter_action`: the regex
+  **never declares a jailbreak**. A harm-keyword hit escalates to the Judge; a
+  clean refusal (no harm signal) short-circuits with `score 1`; anything
+  ambiguous goes to the Judge. The old auto `score 5` behavior was removed.
+  - `Auto Verdict (Regex Hit)` node renamed to `Auto Verdict (Refusal)` and its
+    connection references updated.
+  - `Fetch Jerga` note updated to the new 1,050-row, two-category corpus.
+
+### Removed
+- **`scripts/execution_engine.py`** — duplicated the existing `cmd_run` pipeline
+  against a non-existent model API (`registry.get_model().generate()`).
+- **`scripts/database_ingestion.py`** — naive ingester (single default
+  `harm_category`, CWD-relative paths). Superseded by `attacker/storage/ingest.py`.
+
+### Validation
+- `python -m attacker.main ingest` applied: `jerga`=1050 (525
+  `chemical_biological` + 525 `harassment_bullying`), `jerga_metadata`=1050,
+  `harmbench_behaviors`=300. Each `jerga` row carries `base_intent` (the paired
+  HarmBench behavior) and a `behavior_id` link in `jerga_metadata`.
+- `python -m attacker.main --help` and `ingest --dry-run` run cleanly; the n8n
+  workflow JSON validates with `python -m json.tool`.
+
+### Reason
+- The database previously held only 10 placeholder seed rows and lacked the
+  `harmbench_behaviors` / `jerga_metadata` tables (the V2 schema only runs on a
+  fresh Postgres volume). Without real paired data, the benchmark had nothing
+  meaningful to run. Pairing slang with HarmBench behaviors gives each attack a
+  concrete `base_intent` for the Attacker to pursue and the Judge to score.
+- Focusing on two categories keeps the first real runs interpretable and lets us
+  compare a high-severity technical category (`chemical_biological`) against a
+  social one (`harassment_bullying`).
+
+### Notes
+- The `dataset_combinado.json` corpus and its ingestion assets currently live
+  under `USELESS/leandro/...` (moved there by the repo reorg, commit `9c626da`).
+  The `ingest` subcommand points at that path by default; confirm with the team
+  whether those assets should move back out of `USELESS/`.
+- `psycopg2-binary` is required to run `ingest` (it talks to Postgres on
+  `localhost:5432`). Install via `pip install -r requirements.txt`.
+- This changelog itself was moved to `USELESS/CHANGELOG.md` by the reorg; the
+  entry is kept here to preserve version-history continuity.
+
+### Pending
+- Run the end-to-end benchmark (`python -m attacker.main run`) with a real
+  `NVIDIA_API_KEY` against the new corpus and confirm rows land in `results`.
+- Re-import the updated n8n workflow and confirm the regex→Judge routing matches
+  the Python flow.
+- Decide the final 3×3×3 model lineup (Attacker / Target / Judge) once the
+  1×1×1 flow is validated end-to-end.
+
 ## V0.1.4
 
 ### Plain-language summary

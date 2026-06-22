@@ -56,18 +56,37 @@ def _sleep_for(exc: BaseException, attempt: int) -> float:
     return backoff + random.uniform(0, 1)
 
 
-def completion(model: str, messages: list[dict[str, str]], **kwargs) -> Any:
-    """Thin LiteLLM wrapper that injects NVIDIA NIM credentials and retries.
+def _provider_kwargs(model: str) -> dict[str, str]:
+    """Provider-specific credentials based on the LiteLLM model prefix.
 
-    Transient failures (HTTP 429 / 5xx / connection / timeout) are retried up to
+    - ``openrouter/...`` → OpenRouter (OPENROUTER_API_KEY); LiteLLM sets the base.
+    - anything else      → NVIDIA NIM (NVIDIA_API_KEY + NVIDIA_API_BASE).
+    """
+    if model.startswith("openrouter/"):
+        key = os.getenv("OPENROUTER_API_KEY")
+        return {"api_key": key} if key else {}
+    return {
+        "api_key": os.getenv("NVIDIA_API_KEY"),
+        "api_base": os.getenv("NVIDIA_API_BASE", "https://integrate.api.nvidia.com/v1"),
+    }
+
+
+def completion(model: str, messages: list[dict[str, str]], **kwargs) -> Any:
+    """Thin LiteLLM wrapper that injects provider credentials and retries.
+
+    Routes to OpenRouter or NVIDIA NIM based on the model prefix. Transient
+    failures (HTTP 429 / 5xx / connection / timeout) are retried up to
     ``NIM_MAX_RETRIES`` times with exponential backoff + jitter, honoring a
     ``Retry-After`` header when the server sends one.
     """
     import litellm
 
+    # Silence litellm's noisy stdout banners (e.g. "Provider List: ...") emitted
+    # when a model is missing from its pricing map — cosmetic, not an error.
+    litellm.suppress_debug_info = True
+
     retryable = _retryable_exceptions()
-    api_key = os.getenv("NVIDIA_API_KEY")
-    api_base = os.getenv("NVIDIA_API_BASE", "https://integrate.api.nvidia.com/v1")
+    provider_kwargs = _provider_kwargs(model)
 
     attempt = 0
     while True:
@@ -75,8 +94,7 @@ def completion(model: str, messages: list[dict[str, str]], **kwargs) -> Any:
             return litellm.completion(
                 model=model,
                 messages=messages,
-                api_key=api_key,
-                api_base=api_base,
+                **provider_kwargs,
                 **kwargs,
             )
         except retryable as exc:
