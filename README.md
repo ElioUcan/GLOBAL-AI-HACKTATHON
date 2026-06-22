@@ -27,6 +27,8 @@ This benchmark is used by AI safety researchers and hackathon teams to measure h
 
 The system is orchestrated entirely through n8n workflows: the Attacker Agent reads slang terms from PostgreSQL, calls an NVIDIA NIM LLM via API key to generate an adversarial prompt, forwards it to the Target LLM, then passes both prompt and response to the Judge Agent for scoring. All structured results are written back to PostgreSQL. Grafana connects directly to PostgreSQL to render live dashboards — no intermediate data pipeline needed. The entire stack runs locally in Docker Compose, making it reproducible across team members without any cloud infrastructure dependency.
 
+<img width="2263" height="951" alt="image" src="https://github.com/user-attachments/assets/3f969157-a90f-4ab3-8064-d3304c8e0439" />
+
 ## Quick start (first-time setup)
 
 Run these steps in order. Steps 1–2 bring up the infrastructure, steps 3–4 set up
